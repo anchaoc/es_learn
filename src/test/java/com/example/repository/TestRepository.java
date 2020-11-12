@@ -1,11 +1,19 @@
 package com.example.repository;
 
 import com.example.EsLearnApplication;
+import com.example.constant.EmpConstants;
 import com.example.mapper.EmpEsRepository;
 import com.example.model.Emp;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +23,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.annotation.Resource;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -63,17 +72,28 @@ public class TestRepository {
 //        Page<Emp> result = empEsRepository
 //                .search(QueryBuilders.matchAllQuery(), PageRequest.of(0, 20));
 //        System.out.println(result.getContent());
-
+        // List<Emp> empList = empEsRepository.findByName("安超");
+//        List<Emp> empList = empEsRepository.findByAge(6);
+//        System.out.println(empList);
         TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("content", "小学");
         Iterable<Emp> empIterable = empEsRepository.search(termQueryBuilder);
         empIterable.forEach(System.out::println);
     }
 
     @Test
-    public void testHighSearch(){
-       // List<Emp> empList = empEsRepository.findByName("安超");
-        List<Emp> empList = empEsRepository.findByAge(6);
-        System.out.println(empList);
+    public void testHighSearch() throws IOException {
+        SearchRequest searchRequest = new SearchRequest(EmpConstants.INDEX_NAME);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        TermQueryBuilder termQueryBuilder = QueryBuilders
+                .termQuery("content", "小学");
+        searchSourceBuilder.query(termQueryBuilder)
+                //.sort("age.keyword", SortOrder.DESC).from(0).size(10)
+                .highlighter(new HighlightBuilder().field("content").requireFieldMatch(false).preTags("<span style='color:red'>").postTags("</span>"));
+        searchRequest.types(EmpConstants.TYPE).source(searchSourceBuilder);
+        SearchResponse searchResponse = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+        for (SearchHit hit : searchResponse.getHits()) {
+            System.out.println(hit.getSourceAsString());
+        }
     }
 
 }
